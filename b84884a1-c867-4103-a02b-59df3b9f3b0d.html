@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Bangkok Days: A Then &amp; Now Atlas</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0c1615; --ink-2:#122220; --ink-3:#1b302d;
+    --paper:#e8e2d4; --paper-dim:#a9a698;
+    --lamp:#e0a94e; --jade:#6fb89a; --oxblood:#c25b45; --blue:#2f6df6;
+    --line:rgba(232,226,212,.14); --line-strong:rgba(232,226,212,.28);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{background:var(--ink);color:var(--paper);font-family:"Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  #map{position:absolute;inset:0;z-index:1}
+  .leaflet-container{background:#dfe1dc}
+
+  .leaflet-control-attribution{background:rgba(12,22,21,.72)!important;color:#cfcbbe!important;font-family:"Space Mono",monospace;font-size:9px;backdrop-filter:blur(4px)}
+  .leaflet-control-attribution a{color:#cfcbbe!important}
+  .leaflet-bar a{background:var(--ink-2);color:var(--paper);border-color:var(--line-strong)}
+  .leaflet-bar a:hover{background:var(--ink-3)}
+
+  /* title */
+  .titlecard{position:absolute;top:14px;left:14px;z-index:1000;max-width:min(70vw,352px);
+    background:linear-gradient(180deg,rgba(18,34,32,.95),rgba(12,22,21,.92));
+    border:1px solid var(--line-strong);border-radius:2px;padding:13px 15px 12px;
+    backdrop-filter:blur(9px);box-shadow:0 18px 40px -20px #000}
+  .eyebrow{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--lamp);margin:0 0 6px}
+  .titlecard h1{font-family:"Fraunces",serif;font-optical-sizing:auto;font-weight:600;font-size:25px;line-height:1.02;margin:0;color:var(--paper)}
+  .titlecard h1 em{font-style:italic;font-weight:400;color:var(--lamp)}
+  .titlecard p{margin:8px 0 0;font-size:12px;line-height:1.5;color:var(--paper-dim);max-width:44ch}
+  .byline{font-family:"Space Mono",monospace;font-size:10px;color:var(--paper-dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);letter-spacing:.02em}
+
+  /* legend + base toggle */
+  .legend{position:absolute;bottom:16px;left:14px;z-index:1000;background:rgba(12,22,21,.92);border:1px solid var(--line-strong);border-radius:2px;padding:9px 11px;backdrop-filter:blur(8px);font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.03em;box-shadow:0 14px 30px -18px #000}
+  .basetoggle{display:flex;gap:4px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .basetoggle button{flex:1;background:transparent;border:1px solid var(--line-strong);color:var(--paper-dim);font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:2px;cursor:pointer;white-space:nowrap}
+  .basetoggle button.on{background:var(--lamp);color:#241703;border-color:var(--lamp);font-weight:700}
+  .legend .row{display:flex;align-items:center;gap:8px;margin:4px 0;color:var(--paper-dim)}
+  .legend .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .dot.jade{background:var(--jade);box-shadow:0 0 8px var(--jade)}
+  .dot.amber{background:var(--lamp);box-shadow:0 0 8px var(--lamp)}
+  .dot.ox{background:var(--oxblood);box-shadow:0 0 8px var(--oxblood)}
+  .dot.hollow{background:var(--ink);border:2px solid var(--lamp);box-shadow:none}
+  .dot.blue{background:var(--blue);box-shadow:0 0 8px var(--blue)}
+  .legend .rt{width:15px;height:0;border-top:2px dotted var(--lamp);flex:0 0 auto}
+
+  /* buttons */
+  .browse-btn{position:absolute;top:14px;right:14px;z-index:1000;background:var(--lamp);color:#241703;border:none;border-radius:2px;font-family:"Space Mono",monospace;font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:11px 14px;cursor:pointer;box-shadow:0 10px 26px -12px #000}
+  .browse-btn:active{transform:translateY(1px)}
+  .locate-btn{position:absolute;top:60px;right:14px;z-index:1000;width:42px;height:42px;background:var(--ink-2);color:var(--paper);border:1px solid var(--line-strong);border-radius:2px;cursor:pointer;box-shadow:0 10px 26px -14px #000;display:flex;align-items:center;justify-content:center}
+  .locate-btn:active{transform:translateY(1px)}
+  .locate-btn.busy{color:var(--blue)}
+  .locate-btn svg{width:20px;height:20px;display:block}
+
+  .maphint{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:1500;
+    background:rgba(12,22,21,.95);border:1px solid var(--line-strong);color:var(--paper);
+    font-family:"Space Mono",monospace;font-size:11px;line-height:1.4;padding:9px 13px;border-radius:2px;
+    max-width:82vw;text-align:center;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 14px 30px -16px #000}
+  .maphint.show{opacity:1}
+
+  /* panel */
+  .panel{position:absolute;z-index:1200;top:0;right:0;height:100%;width:min(410px,92vw);
+    background:linear-gradient(180deg,var(--ink-2),var(--ink));border-left:1px solid var(--line-strong);
+    transform:translateX(102%);transition:transform .34s cubic-bezier(.22,.61,.36,1);display:flex;flex-direction:column;box-shadow:-30px 0 60px -30px #000}
+  .panel.open{transform:translateX(0)}
+  .panel-head{padding:16px 18px 13px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .panel-head h2{margin:0;font-family:"Fraunces",serif;font-weight:600;font-size:19px;line-height:1.05}
+  .panel-head p{margin:5px 0 0;font-size:11.5px;color:var(--paper-dim);line-height:1.45}
+  .closex{background:none;border:1px solid var(--line-strong);color:var(--paper);width:30px;height:30px;border-radius:2px;cursor:pointer;flex:0 0 auto;font-size:16px;line-height:1}
+  .panel-scroll{overflow-y:auto;flex:1}
+  .sec-label{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--lamp);padding:16px 18px 6px}
+  .walks{padding:0 12px 4px}
+  .walk{width:100%;text-align:left;background:rgba(224,169,78,.06);border:1px solid var(--line);border-left:2px solid var(--lamp);border-radius:2px;cursor:pointer;color:var(--paper);padding:11px 13px;margin:6px 0;display:block}
+  .walk:hover{background:rgba(224,169,78,.12)}
+  .walk .wn{font-family:"Fraunces",serif;font-size:16px;font-weight:600;line-height:1.1}
+  .walk .wm{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.05em;color:var(--paper-dim);text-transform:uppercase;margin:4px 0 5px}
+  .walk .wd{font-size:11.5px;line-height:1.45;color:var(--paper-dim)}
+  .panel-list{padding:2px 10px 26px}
+  .item{width:100%;text-align:left;background:none;border:none;cursor:pointer;color:var(--paper);padding:12px 10px;border-bottom:1px solid var(--line);display:flex;gap:11px;align-items:flex-start}
+  .item:hover{background:rgba(232,226,212,.04)}
+  .item .idx{font-family:"Space Mono",monospace;font-size:10px;color:var(--paper-dim);padding-top:3px;min-width:20px}
+  .item .body{flex:1;min-width:0}
+  .item .nm{font-family:"Fraunces",serif;font-size:16px;font-weight:500;line-height:1.15}
+  .item .mt{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.05em;color:var(--paper-dim);text-transform:uppercase;margin-top:3px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .item .chip{padding:1px 6px;border-radius:2px;color:#0c1615;font-weight:700}
+  .chip.jade{background:var(--jade)} .chip.amber{background:var(--lamp)} .chip.ox{background:var(--oxblood)}
+  .chip.walk{background:transparent;color:var(--paper-dim);border:1px solid var(--line-strong)}
+
+  /* markers */
+  .lamp-marker,.way-marker{position:relative}
+  .lamp-marker .glow{position:absolute;left:50%;top:50%;width:24px;height:24px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,var(--c) 0%,transparent 70%);opacity:.5}
+  .lamp-marker .core{position:absolute;left:50%;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6),0 0 9px var(--c)}
+  .way-marker .core{position:absolute;left:50%;top:50%;width:11px;height:11px;transform:translate(-50%,-50%);border-radius:50%;background:var(--ink);border:2.5px solid var(--lamp);box-shadow:0 1px 4px rgba(0,0,0,.55)}
+  .userdot{position:relative}
+  .userdot .ud-core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:var(--blue);border:3px solid #fff;box-shadow:0 0 0 2px rgba(47,109,246,.35),0 1px 6px rgba(0,0,0,.6)}
+  .userdot .ud-pulse{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:rgba(47,109,246,.4);animation:udpulse 2.2s ease-out infinite}
+  @keyframes udpulse{0%{width:15px;height:15px;opacity:.6}100%{width:52px;height:52px;opacity:0}}
+
+  .zone-label{background:rgba(12,22,21,.74)!important;border:1px solid var(--line)!important;border-radius:2px;box-shadow:0 2px 8px rgba(0,0,0,.4)!important;
+    font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#efe9db;white-space:nowrap;padding:2px 7px}
+  .leaflet-tooltip-top:before,.leaflet-tooltip:before{display:none}
+
+  /* popup */
+  .leaflet-popup-content-wrapper{background:var(--ink-2);color:var(--paper);border:1px solid var(--line-strong);border-radius:3px;box-shadow:0 24px 60px -24px #000;padding:0}
+  .leaflet-popup-content{margin:0;width:290px!important}
+  .leaflet-popup-tip{background:var(--ink-2);border:1px solid var(--line-strong)}
+  .leaflet-popup-close-button{color:var(--paper-dim)!important;font-size:20px!important;padding:8px 9px 0 0!important}
+  .pop{padding:15px 16px 16px}
+  .pop .kicker{font-family:"Space Mono",monospace;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--lamp);display:flex;justify-content:space-between;gap:10px}
+  .pop .kicker .coord{color:var(--paper-dim)}
+  .pop h3{font-family:"Fraunces",serif;font-weight:600;font-size:21px;line-height:1.05;margin:7px 0 2px}
+  .pop .stamp{display:inline-block;font-family:"Space Mono",monospace;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:2px;color:#0c1615;margin:6px 6px 10px 0}
+  .stamp.jade{background:var(--jade)} .stamp.amber{background:var(--lamp)} .stamp.ox{background:var(--oxblood)}
+  .stamp.walk{background:transparent;color:var(--paper-dim);border:1px solid var(--line-strong)}
+  .pop .what{font-size:12.5px;line-height:1.55;color:var(--paper);margin:0 0 12px}
+  .pop .walktag{font-family:"Space Mono",monospace;font-size:10px;color:var(--lamp);margin:0 0 12px;padding-left:14px;position:relative;line-height:1.4}
+  .pop .walktag::before{content:"";position:absolute;left:0;top:5px;width:8px;border-top:2px dotted var(--lamp)}
+  .tn{position:relative;padding-left:16px}
+  .tn::before{content:"";position:absolute;left:4px;top:5px;bottom:5px;width:1px;background:linear-gradient(var(--jade),var(--lamp))}
+  .tn .leg{margin-bottom:9px}.tn .leg:last-child{margin-bottom:0}
+  .tn .lab{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-dim);margin-bottom:2px;position:relative}
+  .tn .lab::before{content:"";position:absolute;left:-15px;top:3px;width:7px;height:7px;border-radius:50%}
+  .tn .leg.then .lab::before{background:var(--jade)}
+  .tn .leg.now .lab::before{background:var(--lamp)}
+  .tn .txt{font-size:12px;line-height:1.5;color:var(--paper)}
+
+  @media (max-width:560px){
+    .titlecard{max-width:calc(100vw - 28px)} .titlecard h1{font-size:22px}
+    .legend{font-size:9px} .panel{width:100vw}
+    .leaflet-popup-content{width:250px!important}
+  }
+  @media (prefers-reduced-motion:reduce){.panel{transition:none}.userdot .ud-pulse{animation:none;display:none}*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="titlecard">
+  <p class="eyebrow">A then &amp; now atlas</p>
+  <h1>Bangkok <em>Days</em></h1>
+  <p>The wanderings of Lawrence Osborne's 2009 memoir, mapped against the city as it stands in 2026. Tap a lamp for each place then and now, or open Browse to walk the routes.</p>
+  <p class="byline">18 places from the book · 3 walkable routes</p>
+</div>
+
+<button class="browse-btn" id="browseBtn">Browse ⌕</button>
+<button class="locate-btn" id="locateBtn" title="Show my location" aria-label="Show my location">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"></circle>
+    <line x1="12" y1="2" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="22"></line>
+    <line x1="2" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="22" y2="12"></line>
+  </svg>
+</button>
+
+<div class="legend">
+  <div class="basetoggle">
+    <button data-base="streets" class="on">Streets</button>
+    <button data-base="satellite">Satellite</button>
+  </div>
+  <div class="row"><span class="dot jade"></span> Still there</div>
+  <div class="row"><span class="dot amber"></span> Transformed</div>
+  <div class="row"><span class="dot ox"></span> Gone / closed</div>
+  <div class="row"><span class="dot hollow"></span> Route landmark</div>
+  <div class="row"><span class="rt"></span> Walking route</div>
+  <div class="row"><span class="dot blue"></span> You are here</div>
+</div>
+
+<aside class="panel" id="panel">
+  <div class="panel-head">
+    <div>
+      <h2>The itinerary</h2>
+      <p>Osborne walked with no fixed route. These three stretches are genuinely walkable today. Tap a walk to frame it, or any place to fly there.</p>
+    </div>
+    <button class="closex" id="closeX" aria-label="Close">×</button>
+  </div>
+  <div class="panel-scroll">
+    <div class="sec-label">Walkable routes</div>
+    <div class="walks" id="walks"></div>
+    <div class="sec-label">All places</div>
+    <div class="panel-list" id="list"></div>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* status: jade=endures, amber=transformed, ox=gone. kind: book | way */
+const PLACES = [
+  { name:"Chao Phraya River", lat:13.7245,lng:100.5075, kind:"book",
+    type:"The river · the book's spine", status:"jade", stampText:"Endures, banks remade",
+    walktag:"The through-line of the Riverside Walk",
+    what:"The 'water-street of commerce' that gives the old city its shape and Osborne his path. The river is the constant he keeps returning to, drifting past decaying piers and slumped shophouses as his thoughts drift with it.",
+    then:"A working artery of cross-river ferries, rice barges and half-rotten jetties, edged by warehouses and low teak buildings.",
+    now:"Still the city's spine, but the banks are unrecognisable in stretches: the vast IconSiam mall (2018), a wall of luxury condos and tourist river-boats have replaced much of the old waterfront." },
+
+  { name:"Wang Lang", lat:13.7586,lng:100.4861, kind:"book",
+    type:"His first cheap room · Thonburi", status:"jade", stampText:"Endures, rents rising",
+    walktag:"Start of the Thonburi West Bank walk",
+    what:"The grubby riverside warren near Siriraj where the 'a few dollars a day' life begins: a tight tangle of budget rooms, food stalls and a student market on the Thonburi bank, opposite the grand city.",
+    then:"Peeling low-rent apartments and a chaotic market feeding the hospital and university crowds, cheap enough to strand a broke exile indefinitely.",
+    now:"Still a dense market and pier district serving Siriraj, but new condominiums and steadily rising rents have crept into the old cheap-room economy." },
+
+  { name:"Siriraj Forensic Museum", lat:13.7593,lng:100.4857, kind:"book",
+    type:"The 'museum of death'", status:"jade", stampText:"Endures, formalised",
+    walktag:"On the Thonburi West Bank walk",
+    what:"The morbid medical museum inside Siriraj Hospital, with preserved cadavers and the mummified body of the killer Si Ouey. One of Osborne's meditations on mortality and the Thai relationship with death.",
+    then:"A dusty, unsettling collection of pathology specimens and preserved bodies, visited by the curious and the queasy.",
+    now:"Consolidated and renovated as the ticketed Siriraj Medical Museum complex, with a no-photography rule and a more tourist-aware presentation. The famous preserved bodies remain on display." },
+
+  { name:"Thonburi khlongs", lat:13.7380,lng:100.4880, kind:"book",
+    type:"Canals of the old city", status:"jade", stampText:"Endures on this bank",
+    walktag:"Reached by longtail from the Thonburi walk",
+    what:"The canals Osborne drifts through, remnant of the 'Venice of the East': a slower watery city of stilt houses, temples and longtail boats behind the modern one.",
+    then:"A living network of waterside homes and small temples, glimpsed from a hired longtail.",
+    now:"On the Bangkok side most canals were long ago filled for roads, but the Thonburi khlongs endure, now partly a longtail-boat tourist circuit alongside the households still living on the water." },
+
+  { name:"Loha Prasat", lat:13.7539,lng:100.5064, kind:"book",
+    type:"The metal castle · Rattanakosin", status:"jade", stampText:"Endures, re-gilded",
+    walktag:"Heart of walkable Rattanakosin old town",
+    what:"The rare tiered 'iron monastery' at Wat Ratchanatdaram, one of only a few such spired structures ever built. Osborne finds unshowy beauty here in the quiet old royal city.",
+    then:"A somewhat overlooked temple whose 37 spires stood weathered and near-black above the old quarter.",
+    now:"Restored and its spires re-gilded a bright gold (work completed in the late 2010s), floodlit at night and on Thailand's UNESCO tentative list. Far busier with visitors than in the book." },
+
+  { name:"Amarin", lat:13.7436,lng:100.5414, kind:"book",
+    type:"Neighbourhood of decay · Ratchaprasong", status:"amber", stampText:"Scrubbed into retail",
+    what:"One of the neighbourhoods whose decaying smells Osborne lingers over, writing that in Bangkok 'one can decay freely'. For him Amarin is sensual rot, the strange liberation of a quarter going quietly to seed. (His exact spot is hard to pin; this is the Amarin locale the name still marks.)",
+    then:"Older lanes and low buildings going gently to ruin, pungent, humid and alive with decay.",
+    now:"The name now belongs to Gaysorn Amarin, the former Amarin Plaza (opened 1985, recently rebuilt), a polished luxury mall and office tower at Ratchaprasong beside the Erawan Shrine. The decay Osborne savoured has been scrubbed into marble and air-conditioning." },
+
+  { name:"Erawan Shrine", lat:13.7449,lng:100.5405, kind:"book",
+    type:"Brahma shrine · Ratchaprasong", status:"jade", stampText:"Survived the bombing",
+    what:"The Brahma shrine wedged among the luxury malls at the city's busiest junction, thick with incense, garlands and hired temple dancers. Osborne's image of the sacred surviving inside the machinery of commerce.",
+    then:"A ceaselessly busy shrine of worshippers and dancers, ringed by the growing towers of Ratchaprasong.",
+    now:"On 17 August 2015 a bomb here killed twenty people. The shrine and its Brahma image were repaired and reopened within two days, and it is once again thronged, now also marked by that memory." },
+
+  { name:"Mandarin Oriental", lat:13.7234,lng:100.5140, kind:"way",
+    type:"Literary riverside hotel · Bang Rak", status:"jade", stampText:"Route landmark",
+    walktag:"Landmark on the Riverside Walk",
+    what:"The legendary riverside hotel of Conrad, Maugham and Graham Greene, and the spiritual home of the literary, Greene-haunted Bangkok that Osborne's sensibility belongs to. A landmark on the walk rather than a specific scene in the book.",
+    then:"Already a preserved shrine to literary travel, its old Authors' Wing kept as a hush of colonial nostalgia.",
+    now:"Still there and still trading on that heritage, renovated and pricier, the Authors' Lounge now a booked-out afternoon-tea institution." },
+
+  { name:"Shangri-La Hotel", lat:13.7205,lng:100.5140, kind:"book",
+    type:"Riverside luxury · Bang Rak", status:"jade", stampText:"Endures, renovated",
+    walktag:"South end of the Riverside Walk (Saphan Taksin)",
+    what:"The grand riverside hotel that stands as the plush counterpoint to Osborne's few-dollars life: the other Bangkok of air-conditioned marble and river-view suites.",
+    then:"An established riverside five-star, emblem of the moneyed city the narrator watches from the outside.",
+    now:"Still there and fully renovated in recent years, now sitting beside the Saphan Taksin transit hub at the centre of a new era of riverside luxury and mega-mall development." },
+
+  { name:"Haroon Mosque lane", lat:13.7228,lng:100.5158, kind:"book",
+    type:"Hidden Muslim village · Bang Rak", status:"jade", stampText:"Endures, near-unchanged",
+    walktag:"On the Riverside Walk, just inland of the Oriental",
+    what:"A tucked-away Muslim community and mosque hidden in a lane between the river and Charoen Krung Road, one of the still, contemplative corners Osborne seeks out away from the neon.",
+    then:"A quiet, almost village-like enclave folded improbably into the heart of the city near the grand riverside hotels.",
+    now:"Still there and largely unchanged, a pocket of calm, even as the surrounding Charoen Krung has been rebranded as Bangkok's gentrifying 'Creative District'." },
+
+  { name:"Talat Noi", lat:13.7338,lng:100.5128, kind:"way",
+    type:"Old riverside lanes · Bang Rak", status:"amber", stampText:"Route landmark",
+    walktag:"Landmark on the Riverside Walk",
+    what:"Not a named scene in the book, but the archetypal forgotten riverside lane the narrator loves: an old Sino-Portuguese neighbourhood of car-part shops, shrines and crumbling mansions squeezed between Chinatown and the river.",
+    then:"A working-class maze of scrap-metal and engine-repair shops, little known and unpolished.",
+    now:"One of the city's most photographed 'hip heritage' pockets, dense with street art, third-wave cafes and Instagram crowds, while the mechanics and old Teochew shrines hang on." },
+
+  { name:"Yaowarat / Chinatown", lat:13.7402,lng:100.5098, kind:"book",
+    type:"The old Chinese quarter", status:"amber", stampText:"Transformed, endures",
+    walktag:"North end of the Riverside Walk",
+    what:"The old Chinese quarter Osborne trawls: gold shops, joss houses, cramped lanes and decayed temples, the 'forgotten neighbourhoods' the book keeps drifting into.",
+    then:"A dense, faded district of gold dealers, herbalists and shrine smoke, largely overlooked by tourists.",
+    now:"Reborn as one of Bangkok's hottest zones: Michelin street-food fame, a new MRT station (Wat Mangkon, 2019), speakeasy bars and cafes threaded through the old shophouses, though the gold shops and temples endure." },
+
+  { name:"The British Club", lat:13.7268,lng:100.5263, kind:"book",
+    type:"Colonial members' club · Silom", status:"jade", stampText:"Endures since 1903",
+    walktag:"Start of the Silom to the Green Lung walk",
+    what:"The genteel expatriate institution, with its pool, cricket and Anglo rituals, that anchors the book's fading colonial-expat world of 'liars and losers' in exile.",
+    then:"A green, walled pocket of old-world expat life quietly persisting behind the commercial bustle of Surawong.",
+    now:"Still an operating members' club with the same colonial character, now hemmed in tightly by Silom's high-rise office and hotel towers." },
+
+  { name:"Lumphini Park", lat:13.7307,lng:100.5412, kind:"book",
+    type:"The green lung · Silom edge", status:"jade", stampText:"Endures, new neighbour",
+    walktag:"End of the Silom to the Green Lung walk",
+    what:"The city's central park, its ponds patrolled by huge monitor lizards, one of the calm spaces Osborne escapes the heat and crowds into.",
+    then:"Bangkok's classic park of joggers, tai chi and prehistoric-looking water monitors, an oasis ringed by traffic.",
+    now:"Still there and much-loved, now linked by a skywalk to the new Benjakitti Forest Park (2022), giving the old park a vast modern green neighbour." },
+
+  { name:"Bumrungrad Hospital", lat:13.7442,lng:100.5527, kind:"book",
+    type:"Medical-tourism cathedral · Nana", status:"jade", stampText:"Endures, much bigger",
+    what:"The gleaming private hospital that embodies Bangkok's medical-tourism boom, close cousin to the cheap dentistry that first drew Osborne to the city.",
+    then:"Already Asia's flagship for foreign patients flying in for affordable, high-quality treatment.",
+    now:"Vastly expanded and glossier, treating over a million international patients a year. The 'come for the medicine, stay for the city' premise the book opens on is bigger business than ever." },
+
+  { name:"Nana / lower Sukhumvit", lat:13.7405,lng:100.5556, kind:"book",
+    type:"The neon quarter", status:"amber", stampText:"Transformed around it",
+    what:"The loud farang-nightlife heart of Sukhumvit that many of the book's doomed expatriates orbit. Included for completeness as a place in the book.",
+    then:"An unembarrassed centre of foreign nightlife spilling out into the surrounding sois.",
+    now:"Still there and still notorious, but squeezed by gentrification, new condo towers, the skytrain overhead and periodic crackdowns. The old Sukhumvit now shares the street with malls and coffee chains." },
+
+  { name:"Eden Club (Soi 7/1)", lat:13.7396,lng:100.5527, kind:"book",
+    type:"The infamous French venue", status:"ox", stampText:"Gone / name reused",
+    what:"The notorious French-run establishment, run by the man the book calls Marc, that stands as the emblem of Osborne's Bangkok demimonde. Included for completeness as a place in the book.",
+    then:"An infamous fixture of the Sukhumvit underworld, spoken of in hushed, knowing terms.",
+    now:"Its founder has since died and the original Soi 7/1 operation is reported closed. Confusingly, the 'Eden Club' name now belongs to an unrelated dance nightclub on nearby Soi 11." },
+
+  { name:"Thong Lor", lat:13.7345,lng:100.5820, kind:"book",
+    type:"'The most mysterious of streets'", status:"amber", stampText:"Most transformed of all",
+    what:"The Sukhumvit soi that Osborne calls the most mysterious in Bangkok, a place whose very street signs read as cryptic. In the book it is a half-hidden, enigmatic residential district.",
+    then:"A quietly mysterious, largely residential soi, more suggestive than showy.",
+    now:"Perhaps the single most changed place in the book: now the epicentre of hi-so and expat life, wall to wall with craft-cocktail bars, izakayas, brunch spots and luxury condos. The mystery has been thoroughly branded." },
+
+  { name:"Khlong Toey slum", lat:13.7100,lng:100.5560, kind:"book",
+    type:"The port-side slum", status:"jade", stampText:"Endures, under threat",
+    what:"Bangkok's largest slum, packed against the port: the poverty pressed right up against the expat bubble, the book's moral shadow.",
+    then:"A vast, dense settlement of more than a hundred thousand people beside the working docks.",
+    now:"Still there and still home to that community, but under long-running redevelopment pressure as the Port Authority pushes plans to remake the land into a 'smart city', threatening residents with relocation." },
+
+  { name:"Hua Hin", lat:12.5684,lng:99.9577, kind:"book",
+    type:"Seaside escape · ~200 km south", status:"amber", stampText:"Transformed resort",
+    what:"The royal seaside town down the Gulf coast that Osborne escapes to, a gentler counterweight to the fever of the capital. It sits far south of the map's centre.",
+    then:"A genteel, slightly faded royal beach retreat of old villas and quiet sand.",
+    now:"Heavily developed with condos, malls and weekender traffic streaming down from Bangkok. Still trades on its genteel image, but far busier and more built-up than the escape in the book." }
+];
+
+const WALKS = [
+  { id:"river", name:"The Riverside Farang Walk",
+    meta:"Bang Rak to Chinatown · ~3 km · 60 to 90 min",
+    desc:"The flagship stroll north along the Chao Phraya: grand old hotels, a hidden mosque lane, forgotten Sino-Portuguese streets and the gold-shop heart of Chinatown.",
+    coords:[[13.7205,100.5140],[13.7234,100.5140],[13.7228,100.5158],[13.7290,100.5133],[13.7338,100.5128],[13.7402,100.5098]] },
+  { id:"silom", name:"Silom to the Green Lung",
+    meta:"British Club to Lumphini · ~1.6 km · 25 min",
+    desc:"From the walled colonial club across Silom's high-rises to the monitor lizards and ponds of Lumphini Park.",
+    coords:[[13.7268,100.5263],[13.7286,100.5335],[13.7300,100.5390],[13.7307,100.5412]] },
+  { id:"thonburi", name:"The Thonburi West Bank",
+    meta:"Wang Lang to Siriraj · ~0.6 km · 20 min plus boat",
+    desc:"A short riverside loop on the quieter Thonburi side: the cheap-room market, the museum of death, and piers for the old canals.",
+    coords:[[13.7586,100.4861],[13.7593,100.4857],[13.7548,100.4870]] }
+];
+
+const ZONES = [
+  { c:[13.7539,100.5064], r:560, col:"#6fb89a", label:"Rattanakosin" },
+  { c:[13.7285,100.5142], r:1500, col:"#e0a94e", label:"Bang Rak riverside" },
+  { c:[13.7404,100.5100], r:640, col:"#e0a94e", label:"Chinatown" },
+  { c:[13.7578,100.4862], r:640, col:"#6fb89a", label:"Thonburi" },
+  { c:[13.7292,100.5340], r:900, col:"#6fb89a", label:"Silom · Lumphini" }
+];
+
+/* ---------------- MAP ---------------- */
+const map = L.map('map',{zoomControl:false,attributionControl:true,minZoom:5,maxZoom:19}).setView([13.734,100.517],13);
+L.control.zoom({position:'bottomright'}).addTo(map);
+map.attributionControl.addAttribution('“Bangkok Days” (L. Osborne, 2009)');
+
+/* real street + satellite tiles from two different providers */
+const BASES = {
+  streets: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom:19, attribution:'&copy; OpenStreetMap contributors' }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:19, attribution:'Imagery &copy; Esri' })
+};
+
+let anyTileLoaded=false, tileErrs=0, blockHintShown=false;
+function wireBase(layer){
+  layer.on('tileload',()=>{anyTileLoaded=true;});
+  layer.on('tileerror',()=>{
+    tileErrs++;
+    if(!anyTileLoaded && tileErrs>=6 && !blockHintShown){
+      blockHintShown=true;
+      showHint('Street tiles seem blocked in this in-app viewer. Try the Satellite button, or open this file in a browser to load full streets.',7000);
+    }
+  });
+}
+let currentBase = BASES.streets;
+wireBase(currentBase); currentBase.addTo(map);
+
+function setBase(name){
+  map.removeLayer(currentBase);
+  currentBase = BASES[name];
+  anyTileLoaded=false; tileErrs=0;
+  wireBase(currentBase); currentBase.addTo(map);
+  document.querySelectorAll('.basetoggle button').forEach(b=>b.classList.toggle('on', b.dataset.base===name));
+}
+document.querySelectorAll('.basetoggle button').forEach(b=>{
+  b.addEventListener('click',()=>setBase(b.dataset.base));
+});
+
+/* walkable-neighbourhood zones (overlays on the real map) */
+ZONES.forEach(z=>{
+  L.circle(z.c,{radius:z.r,color:z.col,weight:1.5,opacity:.6,dashArray:'3,6',
+    fillColor:z.col,fillOpacity:.05,interactive:false}).addTo(map);
+  L.marker(z.c,{interactive:false,
+    icon:L.divIcon({className:'zone-label',html:z.label,iconSize:[0,0]})}).addTo(map);
+});
+
+/* walking routes: dark casing under an amber dotted line */
+WALKS.forEach(w=>{
+  L.polyline(w.coords,{color:'rgba(20,12,4,.45)',weight:6,opacity:1,lineCap:'round',interactive:false}).addTo(map);
+  L.polyline(w.coords,{color:'#e0a94e',weight:2.6,opacity:.95,dashArray:'1,7',lineCap:'round',interactive:false}).addTo(map);
+});
+
+/* place markers */
+const markers=[];
+const COLORS={jade:'#6fb89a',amber:'#e0a94e',ox:'#c25b45'};
+function popupHTML(p){
+  const coord=p.lat.toFixed(4)+', '+p.lng.toFixed(4);
+  const stampClass=p.kind==='way'?'walk':p.status;
+  const walk=p.walktag?`<p class="walktag">${p.walktag}</p>`:'';
+  return `<div class="pop">
+    <div class="kicker"><span>${p.type}</span><span class="coord">${coord}</span></div>
+    <h3>${p.name}</h3>
+    <span class="stamp ${stampClass}">${p.stampText}</span>
+    <p class="what">${p.what}</p>${walk}
+    <div class="tn">
+      <div class="leg then"><div class="lab">Then · in the book</div><div class="txt">${p.then}</div></div>
+      <div class="leg now"><div class="lab">Now · 2026</div><div class="txt">${p.now}</div></div>
+    </div></div>`;
+}
+PLACES.forEach((p,i)=>{
+  const html = p.kind==='way'
+    ? `<div class="way-marker"><div class="core"></div></div>`
+    : `<div class="lamp-marker" style="--c:${COLORS[p.status]}"><div class="glow"></div><div class="core"></div></div>`;
+  const icon=L.divIcon({className:'',html,iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-11]});
+  const m=L.marker([p.lat,p.lng],{icon}).addTo(map);
+  m.bindPopup(popupHTML(p),{maxWidth:300});
+  markers.push(m);
+});
+
+/* ---------------- HINT TOAST ---------------- */
+let hintEl=null, hintTimer=null;
+function showHint(text,ms){
+  if(!hintEl){ hintEl=document.createElement('div'); hintEl.className='maphint'; document.body.appendChild(hintEl); }
+  hintEl.textContent=text; hintEl.classList.add('show');
+  clearTimeout(hintTimer); hintTimer=setTimeout(()=>hintEl.classList.remove('show'), ms||4000);
+}
+
+/* ---------------- GEOLOCATION ---------------- */
+const locateBtn=document.getElementById('locateBtn');
+let userMarker=null, accCircle=null;
+const userIcon=L.divIcon({className:'',html:'<div class="userdot"><div class="ud-pulse"></div><div class="ud-core"></div></div>',iconSize:[15,15],iconAnchor:[7,7]});
+
+locateBtn.addEventListener('click',()=>{
+  if(!('geolocation' in navigator)){ showHint('This device does not support location.'); return; }
+  locateBtn.classList.add('busy');
+  showHint('Finding your location…',3000);
+  map.locate({setView:true, maxZoom:16, enableHighAccuracy:true, timeout:10000});
+});
+map.on('locationfound', e=>{
+  locateBtn.classList.remove('busy');
+  const r=e.accuracy||60;
+  if(userMarker){ userMarker.setLatLng(e.latlng); } else { userMarker=L.marker(e.latlng,{icon:userIcon,zIndexOffset:1000}).addTo(map); userMarker.bindPopup('You are here'); }
+  if(accCircle){ accCircle.setLatLng(e.latlng).setRadius(r); } else { accCircle=L.circle(e.latlng,{radius:r,color:'#2f6df6',weight:1,opacity:.5,fillColor:'#2f6df6',fillOpacity:.12,interactive:false}).addTo(map); }
+});
+map.on('locationerror', e=>{
+  locateBtn.classList.remove('busy');
+  showHint('Could not get your location. It may be turned off, or blocked in this in-app viewer. Opening the file in a browser usually fixes it.',6000);
+});
+
+/* ---------------- PANEL ---------------- */
+const panel=document.getElementById('panel');
+const list=document.getElementById('list');
+const walksEl=document.getElementById('walks');
+
+WALKS.forEach(w=>{
+  const b=document.createElement('button');
+  b.className='walk';
+  b.innerHTML=`<div class="wn">${w.name}</div><div class="wm">${w.meta}</div><div class="wd">${w.desc}</div>`;
+  b.addEventListener('click',()=>{
+    panel.classList.remove('open');
+    map.fitBounds(L.latLngBounds(w.coords),{padding:[70,70],maxZoom:16,duration:1});
+  });
+  walksEl.appendChild(b);
+});
+
+PLACES.forEach((p,i)=>{
+  const btn=document.createElement('button');
+  btn.className='item';
+  const chip = p.kind==='way'
+    ? `<span class="chip walk">Route stop</span>`
+    : `<span class="chip ${p.status}">${p.status==='jade'?'Here':p.status==='amber'?'Changed':'Gone'}</span>`;
+  btn.innerHTML=`<span class="idx">${String(i+1).padStart(2,'0')}</span>
+    <span class="body"><span class="nm">${p.name}</span>
+    <span class="mt">${chip}${p.type}</span></span>`;
+  btn.addEventListener('click',()=>{
+    panel.classList.remove('open');
+    const far=p.name==='Hua Hin';
+    map.flyTo([p.lat,p.lng],far?11:16,{duration:1.1});
+    setTimeout(()=>markers[i].openPopup(),far?1250:1150);
+  });
+  list.appendChild(btn);
+});
+
+document.getElementById('browseBtn').addEventListener('click',()=>panel.classList.add('open'));
+document.getElementById('closeX').addEventListener('click',()=>panel.classList.remove('open'));
+map.on('click',()=>panel.classList.remove('open'));
+</script>
+</body>
+</html>
